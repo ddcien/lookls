@@ -1,0 +1,23 @@
+[project]
+name = "lookls"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "ddcien",email = "ddcien.lu@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pygls @ git+https://github.com/openlawlibrary/pygls.git",
+    "plyvel (>=1.5.1,<2.0.0)",
+    "aiohttp (>=3.11.11,<4.0.0)",
+    "orjson (>=3.10.13,<4.0.0)",
+    "appdirs (>=1.4.4,<2.0.0)"
+]
+
+[project.scripts]
+lookls = "lookls.server:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
