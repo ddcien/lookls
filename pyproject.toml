@@ -12,11 +12,13 @@ dependencies = [
     "plyvel (>=1.5.1,<2.0.0)",
     "aiohttp (>=3.11.11,<4.0.0)",
     "orjson (>=3.10.13,<4.0.0)",
-    "appdirs (>=1.4.4,<2.0.0)"
+    "appdirs (>=1.4.4,<2.0.0)",
+    "rich (>=13.9.4,<14.0.0)"
 ]
 
 [project.scripts]
-lookls = "lookls.server:main"
+lookls = "lookls.server:lookls_main"
+ici = "lookls.server:ici_main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

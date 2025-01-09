@@ -1,7 +1,4 @@
-import asyncio
 import plyvel
-import os
-import appdirs
 import aiohttp
 from typing import Any
 import orjson as json
@@ -13,12 +10,10 @@ class ICIFetcher:
     def __init__(
         self,
         ici_key: str,
-        cache_lldb: str | None = None,
+        cache_lldb: str,
     ):
         self.__key = ici_key
-        self.__cache_lldb = cache_lldb or os.path.join(
-            appdirs.user_config_dir("ici"), "ici.db"
-        )
+        self.__cache_lldb = cache_lldb
 
     async def __lldb_get(self, key: bytes) -> bytes:
         with plyvel.DB(self.__cache_lldb, create_if_missing=True) as db:

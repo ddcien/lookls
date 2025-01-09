@@ -1,9 +1,14 @@
+import logging
+import sys
+import os
 from pygls.lsp.server import LanguageServer
+
 from pygls.cli import start_server
 from lsprotocol import types
 import asyncio
 import re
-import os
+import json
+import appdirs
 from .ici import ICIFetcher
 
 
@@ -13,6 +18,8 @@ RE_START_WORD = re.compile("[A-Za-z]*$")
 
 
 class LookLS(LanguageServer):
+    CONFIG_DIR = appdirs.user_config_dir("lookls")
+
     @staticmethod
     def __word_at_position(
         line: str,
@@ -28,21 +35,15 @@ class LookLS(LanguageServer):
         assert m_end
         return m_start.group() + m_end.group(), m_start.span()[0]
 
-    @staticmethod
-    async def __look(prefix: str):
-        file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "10k.txt")
-
-        if os.path.exists(file) and os.path.isfile(file):
-            args = ("-bdf", prefix, file)
-        else:
-            args = (prefix,)
-
+    async def __look(self, prefix: str):
         return (
             (
                 await (
                     await asyncio.create_subprocess_exec(
                         "look",
-                        *args,
+                        "-df",
+                        prefix,
+                        self.__dict_file,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.DEVNULL,
                         stdin=asyncio.subprocess.DEVNULL,
@@ -53,9 +54,12 @@ class LookLS(LanguageServer):
             .splitlines()
         )
 
-    def __init__(self, ici: ICIFetcher, *args, **kwargs) -> None:
-        super().__init__(name="LookLS", version="0.1.0", *args, **kwargs)
+    def __init__(
+        self, ici: ICIFetcher, dict_file: str | None = None, *args, **kwargs
+    ) -> None:
+        super().__init__(name=self.__class__.__name__, version="0.1.0", *args, **kwargs)
         self.__ici = ici
+        self.__dict_file = dict_file or "/usr/share/dict/words"
 
         @self.feature(types.TEXT_DOCUMENT_HOVER)
         async def hover(params: types.HoverParams):
@@ -159,12 +163,39 @@ class LookLS(LanguageServer):
                 )
             return item
 
+    @staticmethod
+    def load_cfg():
+        return json.load(open(os.path.join(LookLS.CONFIG_DIR, "config.json")))
 
-def main():
-    _ici = ICIFetcher(ici_key="E0F0D336AF47D3797C68372A869BDBC5")
-    server = LookLS(ici=_ici)
-    start_server(server)
+    @staticmethod
+    def get_ici() -> ICIFetcher:
+        cfg = LookLS.load_cfg()
+        ici_key, ici_db = cfg["ici_key"], cfg["ici_db"]
+        if not os.path.isabs(ici_db):
+            ici_db = os.path.join(LookLS.CONFIG_DIR, ici_db)
+        return ICIFetcher(ici_key=ici_key, cache_lldb=ici_db)
 
 
-if __name__ == "__main__":
-    main()
+async def _ici_translate(word: str):
+    msg = await LookLS.get_ici().translate(word)
+    if not msg:
+        return
+    from rich.console import Console
+    from rich.markdown import Markdown
+
+    Console().print(Markdown(msg))
+
+
+def ici_main():
+    if len(sys.argv) < 2:
+        print("Usage: {} <word>".format(sys.argv[0]))
+        sys.exit(1)
+
+    asyncio.run(_ici_translate(sys.argv[1].lower()))
+
+
+def lookls_main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    start_server(
+        LookLS(LookLS.get_ici(), dict_file=os.path.join(LookLS.CONFIG_DIR, "20k.txt"))
+    )
